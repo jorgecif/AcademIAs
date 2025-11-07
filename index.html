@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registro de Academias IA — Selección Visual</title>
+  <style>
+    :root{
+      --bg:#0e0f18;--ink:#e8ecff;--muted:#a9b0da;--panel:#12142a;--card:#0b0d21;--line:#2b2f64;--accent:#6b8bff;--ok:#10b981;--danger:#ef4444;--warn:#f59e0b;
+      --umb:#e11d48; --xav:#10b981; --shadow:0 18px 40px rgba(0,0,0,.4); --r:22px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1200px 600px at 25% -10%,#1a1e46 0%,#0e0f18 55%),linear-gradient(135deg,#0e0f18,#0a0b14);color:var(--ink);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 56px}
+    header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+    header h1{font-size:clamp(18px,3.2vw,28px);margin:0}
+    header .muted{color:var(--muted);font-size:13px}
+    .btn{appearance:none;border:1px solid var(--line);background:transparent;color:var(--ink);padding:8px 12px;border-radius:12px;cursor:pointer}
+    .btn:hover{filter:brightness(1.1)}
+
+    /* Doble columna */
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+    @media (max-width:860px){.grid{grid-template-columns:1fr;}}
+
+    .column{display:flex;flex-direction:column;align-items:center;gap:16px}
+    .cupos{display:flex;flex-direction:column;align-items:center;gap:2px}
+    .cupos .lbl{font-size:14px;color:var(--muted)}
+    .cupos .num{font-size:36px;font-weight:900;letter-spacing:.5px}
+
+    /* Marco estilo cuadro */
+    .frame{
+      --glow:0 0 0 rgba(0,0,0,0);
+      width:min(430px,92%);
+      aspect-ratio:3/4;
+      background:linear-gradient(#2a2f61,#0b0d21);
+      border-radius:18px; padding:12px; position:relative;
+      border:1px solid #3a3f8a; box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), var(--shadow), var(--glow);
+      transition:transform .2s ease, box-shadow .25s ease, filter .25s ease;
+      cursor:pointer;
+    }
+    .frame:hover{transform:translateY(-4px) scale(1.02); box-shadow:inset 0 0 0 2px rgba(255,255,255,.08), 0 16px 50px rgba(32,40,120,.35)}
+    .frame.selected{animation:pop .5s ease; box-shadow:inset 0 0 0 2px rgba(255,255,255,.12), 0 0 0 6px rgba(107,139,255,.18), var(--shadow)}
+    @keyframes pop{0%{transform:scale(.98)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
+
+    .frame-inner{width:100%;height:100%;border-radius:12px;background:#000;display:grid;place-items:center;position:relative;overflow:hidden}
+    .badge{position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.06);border:1px solid #38409a;color:#cfd6ff;padding:6px 10px;border-radius:999px;font-size:12px}
+
+    /* Logos */
+    .logo{width:70%;max-width:260px}
+    .logo.umbrella svg path.white{fill:#fff}
+    .logo.xavier svg *{}
+
+    /* Listas */
+    h3{margin:0;font-size:16px;font-weight:800}
+    ul.list{list-style:none;margin:0;padding:0;display:grid;gap:8px;width:100%;max-width:420px}
+    li.item{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line);padding:8px 10px;border-radius:12px}
+    .num{font-weight:800;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:999px;color:#c7cffc}
+    .remove{margin-left:auto;background:transparent;border:1px solid #3a448e;color:#d2d7ff;padding:4px 8px;border-radius:8px;cursor:pointer}
+
+    /* Modal base */
+    .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(3,6,22,.6);backdrop-filter:blur(3px);z-index:50}
+    .modal.show{display:grid}
+    .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(520px,92%);padding:18px}
+    .sheet h2{margin:0 0 8px 0;font-size:18px}
+    .sheet p{margin:0 0 12px 0;color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .control{display:flex;flex-direction:column;gap:6px}
+    label{font-size:12px;color:#d9defc}
+    input[type="number"],input[type="text"]{background:#0c1031;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px;font-size:14px;outline:none}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+    .primary{background:linear-gradient(180deg,#6ea2ff,#587cf7);color:#0a0f2b;border:0;border-radius:12px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .ghost{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 14px;cursor:pointer}
+
+    /* Color glow por academia */
+    .frame[data-academy="umbrella"].hovering{box-shadow:0 0 0 6px rgba(225,29,72,.25), var(--shadow)}
+    .frame[data-academy="xavier"].hovering{box-shadow:0 0 0 6px rgba(16,185,129,.25), var(--shadow)}
+
+    .msg{font-size:12px;color:var(--muted);text-align:center;margin-top:-8px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Registro de Academias IA</h1>
+        <div class="muted">Selecciona una academia, escribe el nombre del equipo y listo. Los cupos se actualizan en tiempo real.</div>
+      </div>
+      <button class="btn" id="openSetup">Configurar cupos</button>
+    </header>
+
+    <section class="grid">
+      <!-- UMBRELLA -->
+      <div class="column" id="colUmb">
+        <div class="cupos"><div class="lbl">Cupos</div><div class="num" id="capUmbTxt">0</div></div>
+        <div class="frame" data-academy="umbrella" id="frameUmb" tabindex="0" title="Elegir Umbrella Academy">
+          <div class="frame-inner">
+            <div class="logo umbrella" aria-hidden="true">
+              <!-- Umbrella logo -->
+              <svg viewBox="0 0 100 100" width="100%" class="svgUmb">
+                <path class="white" d="M50 14c-18 0-33 13-36 30h72C83 27 68 14 50 14z"/>
+                <path d="M18 48c4 16 17 28 32 28s28-12 32-28H18z" fill="#ffd1da"/>
+                <path class="white" d="M48 48v30a2 2 0 1 0 4 0V48z"/>
+              </svg>
+            </div>
+            <div class="badge">Umbrella Academy</div>
+          </div>
+        </div>
+        <h3>Equipos</h3>
+        <ul class="list" id="listUmb"></ul>
+        <div class="msg" id="msgUmb"></div>
+      </div>
+
+      <!-- XAVIER -->
+      <div class="column" id="colXav">
+        <div class="cupos"><div class="lbl">Cupos</div><div class="num" id="capXavTxt">0</div></div>
+        <div class="frame" data-academy="xavier" id="frameXav" tabindex="0" title="Elegir Xavier's School">
+          <div class="frame-inner">
+            <div class="logo xavier" aria-hidden="true">
+              <!-- Xavier / X-Men mark -->
+              <svg viewBox="0 0 100 100" width="100%">
+                <circle cx="50" cy="50" r="44" fill="#1b2b2b"/>
+                <circle cx="50" cy="50" r="34" fill="#fff"/>
+                <path d="M28 39l11-11 11 11 11-11 11 11-11 11 11 11-11 11-11-11-11 11-11-11 11-11z" fill="#10b981"/>
+              </svg>
+            </div>
+            <div class="badge">Xavier's School</div>
+          </div>
+        </div>
+        <h3>Equipos</h3>
+        <ul class="list" id="listXav"></ul>
+        <div class="msg" id="msgXav"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal SETUP -->
+  <div class="modal" id="modalSetup" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <div class="sheet">
+      <h2 id="setupTitle">Configurar cupos iniciales</h2>
+      <p>Establece la capacidad de cada academia. Podrás cambiarla luego.</p>
+      <div class="row">
+        <div class="control"><label for="capUmb">Cupos Umbrella</label><input id="capUmb" type="number" min="0" step="1" placeholder="Ej: 5"/></div>
+        <div class="control"><label for="capXav">Cupos Xavier</label><input id="capXav" type="number" min="0" step="1" placeholder="Ej: 5"/></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="cancelSetup">Cerrar</button>
+        <button class="primary" id="saveSetup">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal NOMBRE EQUIPO -->
+  <div class="modal" id="modalTeam" role="dialog" aria-modal="true" aria-labelledby="teamTitle">
+    <div class="sheet">
+      <h2 id="teamTitle">Registrar equipo</h2>
+      <p>Escribe el nombre del equipo para <b id="academyTarget"></b>.</p>
+      <div class="control"><label for="teamName">Nombre del equipo</label><input id="teamName" type="text" maxlength="60" placeholder="Ej: Los Visionarios"/></div>
+      <div class="actions">
+        <button class="ghost" id="cancelTeam">Cancelar</button>
+        <button class="primary" id="confirmTeam">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Estado
+    const state = { caps:{umbrella:0,xavier:0}, teams:{umbrella:[],xavier:[]} };
+    const el = id=>document.getElementById(id);
+
+    // Persistencia
+    function save(){ localStorage.setItem('academiasIA_v2', JSON.stringify(state)); }
+    function load(){ const raw = localStorage.getItem('academiasIA_v2'); if(!raw) return; try{ const s = JSON.parse(raw); if(s?.caps && s?.teams){ state.caps=s.caps; state.teams=s.teams; } }catch(e){} }
+
+    // Render principal
+    function render(){
+      el('capUmbTxt').textContent = Math.max(0, state.caps.umbrella - state.teams.umbrella.length);
+      el('capXavTxt').textContent = Math.max(0, state.caps.xavier - state.teams.xavier.length);
+      renderList('listUmb','umbrella');
+      renderList('listXav','xavier');
+      el('msgUmb').textContent = cuposMsg('umbrella');
+      el('msgXav').textContent = cuposMsg('xavier');
+      save();
+    }
+    function cuposMsg(key){
+      const used = state.teams[key].length; const cap = state.caps[key]; const left = Math.max(0, cap-used);
+      return `${used} registrados • ${left} libres de ${cap}`;
+    }
+    function renderList(listId,key){
+      const ul = el(listId); ul.innerHTML='';
+      state.teams[key].forEach((name,i)=>{
+        const li=document.createElement('li'); li.className='item';
+        const n=document.createElement('span'); n.className='num'; n.textContent=i+1;
+        const s=document.createElement('span'); s.textContent=name;
+        const b=document.createElement('button'); b.className='remove'; b.textContent='Quitar';
+        b.addEventListener('click',()=>{ state.teams[key].splice(i,1); render(); });
+        li.append(n,s,b); ul.appendChild(li);
+      });
+    }
+
+    // Hover/selección animada
+    function onHover(e){ e.currentTarget.classList.add('hovering'); }
+    function onLeave(e){ e.currentTarget.classList.remove('hovering'); }
+    function onChoose(key){
+      const frame = key==='umbrella'? el('frameUmb'): el('frameXav');
+      frame.classList.add('selected'); setTimeout(()=>frame.classList.remove('selected'),500);
+      // Verificar cupos
+      const cap = state.caps[key]; const used = state.teams[key].length;
+      if(used >= cap){ alert('No quedan cupos en esa academia.'); return; }
+      openTeamModal(key);
+    }
+
+    // Modal helpers
+    const modalSetup = el('modalSetup');
+    const modalTeam  = el('modalTeam');
+    let pendingAcademy = null;
+
+    function openSetup(fillCurrent=false){
+      if(fillCurrent){ el('capUmb').value = state.caps.umbrella; el('capXav').value = state.caps.xavier; }
+      modalSetup.classList.add('show');
+      setTimeout(()=>el('capUmb').focus(),50);
+    }
+    function closeSetup(){ modalSetup.classList.remove('show'); }
+
+    function openTeamModal(key){
+      pendingAcademy = key;
+      el('academyTarget').textContent = key==='umbrella' ? 'Umbrella Academy' : "Xavier's School";
+      el('teamName').value='';
+      modalTeam.classList.add('show');
+      setTimeout(()=>el('teamName').focus(),50);
+    }
+    function closeTeamModal(){ modalTeam.classList.remove('show'); pendingAcademy=null; }
+
+    // Guardar cupos
+    function saveSetup(){
+      const u = Math.max(0, Number(el('capUmb').value)||0);
+      const x = Math.max(0, Number(el('capXav').value)||0);
+      if(u < state.teams.umbrella.length || x < state.teams.xavier.length){
+        alert('Los cupos no pueden ser menores a los equipos ya registrados.');
+        return;
+      }
+      state.caps.umbrella = u; state.caps.xavier = x; closeSetup(); render();
+    }
+
+    // Confirmar equipo
+    function confirmTeam(){
+      const name = el('teamName').value.trim(); if(!name) return;
+      if(state.teams.umbrella.includes(name) || state.teams.xavier.includes(name)){
+        alert('Ese equipo ya está registrado.'); return; }
+      const key = pendingAcademy; if(!key) return;
+      if(state.teams[key].length >= state.caps[key]){ alert('No quedan cupos.'); return; }
+      state.teams[key].push(name); closeTeamModal(); render();
+    }
+
+    // Eventos UI
+    el('openSetup').addEventListener('click', ()=>openSetup(true));
+    el('saveSetup').addEventListener('click', saveSetup);
+    el('cancelSetup').addEventListener('click', closeSetup);
+
+    el('frameUmb').addEventListener('mouseenter', onHover);
+    el('frameUmb').addEventListener('mouseleave', onLeave);
+    el('frameXav').addEventListener('mouseenter', onHover);
+    el('frameXav').addEventListener('mouseleave', onLeave);
+
+    el('frameUmb').addEventListener('click', ()=>onChoose('umbrella'));
+    el('frameXav').addEventListener('click', ()=>onChoose('xavier'));
+
+    el('cancelTeam').addEventListener('click', closeTeamModal);
+    el('confirmTeam').addEventListener('click', confirmTeam);
+    el('teamName').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmTeam(); });
+
+    // Inicio: cargar estado y si no hay cupos definidos, pedir setup
+    load();
+    if(state.caps.umbrella===0 && state.caps.xavier===0){
+      openSetup();
+    }
+    render();
+  </script>
+</body>
+</html>
