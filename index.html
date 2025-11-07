@@ -48,7 +48,6 @@
     /* Logos */
     .logo{width:70%;max-width:260px}
     .logo.umbrella svg path.white{fill:#fff}
-    .logo.xavier svg *{}
 
     /* Listas */
     h3{margin:0;font-size:16px;font-weight:800}
@@ -76,6 +75,9 @@
     .frame[data-academy="xavier"].hovering{box-shadow:0 0 0 6px rgba(16,185,129,.25), var(--shadow)}
 
     .msg{font-size:12px;color:var(--muted);text-align:center;margin-top:-8px}
+
+    /* Confetti canvas ocupa toda la pantalla */
+    #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
   </style>
 </head>
 <body>
@@ -132,6 +134,9 @@
       </div>
     </section>
   </div>
+
+  <!-- Canvas confetti -->
+  <canvas id="confetti"></canvas>
 
   <!-- Modal SETUP -->
   <div class="modal" id="modalSetup" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
@@ -197,12 +202,83 @@
       });
     }
 
+    // --- Efectos: confetti + aplausos ---
+    const confettiCanvas = el('confetti');
+    const cctx = confettiCanvas.getContext('2d');
+    function resizeCanvas(){ confettiCanvas.width = innerWidth; confettiCanvas.height = innerHeight; }
+    addEventListener('resize', resizeCanvas); resizeCanvas();
+
+    function launchConfetti(x,y,burst=150){
+      const parts = [];
+      for(let i=0;i<burst;i++){
+        const angle = Math.random()*Math.PI*2;
+        const speed = 2 + Math.random()*6;
+        parts.push({
+          x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 4,
+          g: 0.12 + Math.random()*0.08,
+          w: 6 + Math.random()*6,
+          h: 8 + Math.random()*10,
+          rot: Math.random()*Math.PI,
+          vr: (Math.random()-.5)*0.2,
+          color: `hsl(${Math.floor(Math.random()*360)},90%,65%)`,
+          life: 60 + Math.random()*40
+        });
+      }
+      let animId;
+      function tick(){
+        cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+        parts.forEach(p=>{
+          p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 1;
+          cctx.save(); cctx.translate(p.x,p.y); cctx.rotate(p.rot); cctx.fillStyle=p.color;
+          cctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); cctx.restore();
+        });
+        for(let i=parts.length-1;i>=0;i--) if(parts[i].life<=0 || parts[i].y>confettiCanvas.height+40) parts.splice(i,1);
+        if(parts.length){ animId = requestAnimationFrame(tick);} else { cancelAnimationFrame(animId); cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }
+      }
+      tick();
+    }
+
+    // Aplausos sintetizados con WebAudio
+    let audioCtx;
+    function playApplause(){
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      // Varias ráfagas de ruido con envolventes para simular aplausos
+      for(let i=0;i<6;i++){
+        const t = now + i*0.08 + Math.random()*0.03;
+        const dur = 0.25 + Math.random()*0.15;
+        const bufferSize = Math.floor(audioCtx.sampleRate*dur);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        // Ruido "aplauso": pulsos de ruido blanco atenuados
+        for(let j=0;j<bufferSize;j++){
+          const env = Math.pow(1 - j/bufferSize, 2); // decaimiento
+          data[j] = (Math.random()*2-1) * env * 0.6;
+        }
+        const src = audioCtx.createBufferSource(); src.buffer = buffer;
+        const filt = audioCtx.createBiquadFilter(); filt.type='bandpass'; filt.frequency.value = 1500 + Math.random()*800; filt.Q.value=0.8;
+        const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.0001, t); gain.gain.exponentialRampToValueAtTime(0.6, t+0.02); gain.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+        src.connect(filt).connect(gain).connect(audioCtx.destination);
+        src.start(t);
+      }
+      // Pequeño acorde brillante (celebración)
+      const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+      osc.type='triangle'; osc.frequency.value=880; // A5
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.25, now+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, now+0.35);
+      osc.connect(g).connect(audioCtx.destination); osc.start(now); osc.stop(now+0.4);
+    }
+
     // Hover/selección animada
     function onHover(e){ e.currentTarget.classList.add('hovering'); }
     function onLeave(e){ e.currentTarget.classList.remove('hovering'); }
-    function onChoose(key){
+    function onChoose(key, ev){
       const frame = key==='umbrella'? el('frameUmb'): el('frameXav');
       frame.classList.add('selected'); setTimeout(()=>frame.classList.remove('selected'),500);
+      // Efectos
+      launchConfetti(ev.clientX, ev.clientY, 200);
+      playApplause();
       // Verificar cupos
       const cap = state.caps[key]; const used = state.teams[key].length;
       if(used >= cap){ alert('No quedan cupos en esa academia.'); return; }
@@ -261,8 +337,8 @@
     el('frameXav').addEventListener('mouseenter', onHover);
     el('frameXav').addEventListener('mouseleave', onLeave);
 
-    el('frameUmb').addEventListener('click', ()=>onChoose('umbrella'));
-    el('frameXav').addEventListener('click', ()=>onChoose('xavier'));
+    el('frameUmb').addEventListener('click', (e)=>onChoose('umbrella', e));
+    el('frameXav').addEventListener('click', (e)=>onChoose('xavier', e));
 
     el('cancelTeam').addEventListener('click', closeTeamModal);
     el('confirmTeam').addEventListener('click', confirmTeam);
@@ -277,3 +353,4 @@
   </script>
 </body>
 </html>
+
